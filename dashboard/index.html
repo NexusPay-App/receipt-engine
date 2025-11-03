@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusPay Receipt Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #718096;
+        }
+        
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card h2 {
+            color: #2d3748;
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+        }
+        
+        .score-display {
+            font-size: 3rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .level-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 9999px;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+        
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .stat:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #718096;
+        }
+        
+        .stat-value {
+            color: #2d3748;
+            font-weight: 600;
+        }
+        
+        .receipts-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .receipt-item {
+            background: #f7fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .receipt-info h3 {
+            color: #2d3748;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .receipt-info p {
+            color: #718096;
+            font-size: 0.75rem;
+        }
+        
+        .receipt-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .share-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        .share-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 4rem;
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .trend-up {
+            color: #48bb78;
+            font-weight: 600;
+        }
+        
+        .trend-down {
+            color: #f56565;
+            font-weight: 600;
+        }
+        
+        .trend-stable {
+            color: #ed8936;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loading" id="loading">Loading your financial identity...</div>
+        
+        <div id="dashboard" style="display: none;">
+            <div class="header">
+                <h1>Your Financial Identity</h1>
+                <p>Dynamic NFT Receipt Dashboard</p>
+            </div>
+            
+            <div class="cards">
+                <div class="card">
+                    <h2>Credit Score</h2>
+                    <div class="score-display" id="creditScore">--</div>
+                    <div class="level-badge" id="level">Level --</div>
+                    <div class="stat" style="margin-top: 1rem; border: none;">
+                        <span class="stat-label">Trend</span>
+                        <span class="stat-value" id="trend">--</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Progress to Next Level</h2>
+                    <div class="stat">
+                        <span class="stat-label">Current Receipts</span>
+                        <span class="stat-value" id="totalReceipts">--</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Next Level At</span>
+                        <span class="stat-value" id="nextThreshold">--</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Score Components</h2>
+                    <div class="stat">
+                        <span class="stat-label">Income Verification</span>
+                        <span class="stat-value" id="incomeScore">--</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Transaction Behavior</span>
+                        <span class="stat-value" id="behaviorScore">--</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Relationship Quality</span>
+                        <span class="stat-value" id="relationshipScore">--</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Growth Potential</span>
+                        <span class="stat-value" id="growthScore">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Recent Receipts (Dynamic NFTs)</h2>
+                <div class="receipts-grid" id="receiptsGrid">
+                    <!-- Receipts will be populated here -->
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Share Your Financial Profile</h2>
+                <p style="color: #718096; margin-bottom: 1rem;">
+                    Generate a secure, time-limited link to share your verified financial data
+                    with lenders, landlords, or employers.
+                </p>
+                <button class="share-btn" onclick="createShare()">
+                    Generate Shareable Link
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:3001/api/v1';
+        const USER_ID = 'user-123'; // In production, get from session
+        
+        async function loadDashboard() {
+            try {
+                // Fetch profile
+                const profileRes = await fetch(`${API_URL}/profile/${USER_ID}`, {
+                    headers: { 'X-API-Key': 'your-api-key' }
+                });
+                const profile = await profileRes.json();
+                
+                if (!profile.success) {
+                    throw new Error('Failed to load profile');
+                }
+                
+                // Populate UI
+                const data = profile.data;
+                
+                document.getElementById('creditScore').textContent = data.creditScore || 0;
+                document.getElementById('level').textContent = `Level ${data.level}`;
+                document.getElementById('totalReceipts').textContent = data.totalReceipts;
+                
+                // Trend
+                const trendEl = document.getElementById('trend');
+                const trendClass = data.trend === 'improving' ? 'trend-up' : 
+                                   data.trend === 'declining' ? 'trend-down' : 'trend-stable';
+                trendEl.className = `stat-value ${trendClass}`;
+                trendEl.textContent = data.trend.charAt(0).toUpperCase() + data.trend.slice(1);
+                
+                // Progress
+                const thresholds = [1, 10, 50, 200, 1000];
+                const nextThreshold = thresholds[data.level] || 1000;
+                const progress = Math.min((data.totalReceipts / nextThreshold) * 100, 100);
+                
+                document.getElementById('nextThreshold').textContent = nextThreshold;
+                document.getElementById('progress').style.width = `${progress}%`;
+                
+                // Score components
+                if (data.scoreComponents) {
+                    document.getElementById('incomeScore').textContent = Math.round(data.scoreComponents.incomeVerification);
+                    document.getElementById('behaviorScore').textContent = Math.round(data.scoreComponents.transactionBehavior);
+                    document.getElementById('relationshipScore').textContent = Math.round(data.scoreComponents.relationshipQuality);
+                    document.getElementById('growthScore').textContent = Math.round(data.scoreComponents.growthPotential);
+                }
+                
+                // Load receipts
+                const receiptsRes = await fetch(`${API_URL}/receipts/${USER_ID}?limit=10`, {
+                    headers: { 'X-API-Key': 'your-api-key' }
+                });
+                const receipts = await receiptsRes.json();
+                
+                if (receipts.success && receipts.data.receipts.length > 0) {
+                    const grid = document.getElementById('receiptsGrid');
+                    grid.innerHTML = receipts.data.receipts.map(r => `
+                        <div class="receipt-item">
+                            <div class="receipt-info">
+                                <h3>${r.txType.replace(/_/g, ' ')}</h3>
+                                <p>${new Date(r.transactionDate).toLocaleDateString()} • Token #${r.tokenId}</p>
+                            </div>
+                            <div class="receipt-badge">NFT</div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Show dashboard
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('loading').textContent = 'Error loading dashboard';
+            }
+        }
+        
+        async function createShare() {
+            try {
+                const response = await fetch(`${API_URL}/shares/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'your-api-key'
+                    },
+                    body: JSON.stringify({
+                        userId: USER_ID,
+                        scope: {
+                            includeProfile: true,
+                            includeScore: true,
+                            incomeRange: true,
+                            transactionDates: false,
+                        },
+                        recipientType: 'LENDER',
+                        purpose: 'Loan application',
+                        expiresIn: 7 * 24 * 60 * 60, // 7 days
+                        maxViews: 5,
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const shareUrl = `${window.location.origin}/verify/${result.data.token}`;
+                    
+                    // Copy to clipboard
+                    await navigator.clipboard.writeText(shareUrl);
+                    
+                    alert(`Share link created and copied to clipboard!\n\nExpires: ${new Date(result.data.expiresAt).toLocaleString()}\nMax views: ${result.data.viewsRemaining || 'unlimited'}`);
+                }
+            } catch (error) {
+                console.error('Error creating share:', error);
+                alert('Failed to create share link');
+            }
+        }
+        
+        // Load on page load
+        loadDashboard();
+    </script>
+</body>
+</html>
+

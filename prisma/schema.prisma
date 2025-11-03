@@ -1,0 +1,375 @@
+// Receipt Engine Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ Core Models ============
+
+model User {
+  id                String    @id @default(uuid())
+  
+  // Identity
+  smartWalletAddress String   @unique
+  mainBackendUserId  String   @unique
+  did                String?  @unique // Decentralized Identifier
+  
+  // Profile
+  level              Int      @default(1)
+  creditScore        Int      @default(0)
+  totalReceipts      Int      @default(0)
+  
+  // Merkle State
+  receiptMerkleRoot  String?
+  profileMerkleRoot  String?
+  
+  // Timestamps
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  firstReceiptAt     DateTime?
+  lastReceiptAt      DateTime?
+  
+  // Relations
+  receipts           Receipt[]
+  aggregates         ProfileAggregate[]
+  proofs             Proof[]
+  shares             Share[]
+  
+  @@index([smartWalletAddress])
+  @@index([mainBackendUserId])
+  @@index([creditScore])
+  @@index([level])
+}
+
+model Receipt {
+  id                 String   @id @default(uuid())
+  
+  // On-chain reference
+  tokenId            String   @unique
+  chainId            Int
+  contractAddress    String
+  transactionHash    String
+  blockNumber        BigInt
+  
+  // User reference
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Transaction data (commitments only)
+  txHash             String   // Hash of full transaction
+  amountCommitment   String   // Pedersen commitment
+  timestampCommitment String  // Timestamp commitment
+  
+  // Metadata
+  txType             TransactionType
+  category           String?
+  verified           Boolean  @default(false)
+  
+  // Off-chain data reference
+  ipfsHash           String?  // Full encrypted receipt on IPFS
+  encryptionKey      String?  // User-encrypted key
+  
+  // Merkle tree data
+  merkleProof        Json?    // Proof for this receipt
+  merkleIndex        Int?     // Position in tree
+  
+  // Timestamps
+  transactionDate    DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([txType])
+  @@index([transactionDate])
+  @@index([verified])
+  @@index([tokenId])
+}
+
+enum TransactionType {
+  REMITTANCE
+  SALARY
+  BUSINESS_REVENUE
+  MERCHANT_PAYMENT
+  PEER_TO_PEER
+  DEFI_OPERATION
+  STABLECOIN_TRANSFER
+  MOBILE_MONEY
+  CROSS_CHAIN
+  OTHER
+}
+
+model ProfileAggregate {
+  id                 String   @id @default(uuid())
+  
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Time window
+  periodType         PeriodType
+  periodStart        DateTime
+  periodEnd          DateTime
+  
+  // Aggregated metrics
+  totalTransactions  Int
+  totalValue         Decimal  @db.Decimal(20, 2)
+  averageValue       Decimal  @db.Decimal(20, 2)
+  medianValue        Decimal? @db.Decimal(20, 2)
+  stdDeviation       Decimal? @db.Decimal(20, 2)
+  
+  // Source analysis
+  uniqueSources      Int
+  repeatSources      Int
+  topSourceCategory  String?
+  
+  // Behavior metrics
+  transactionFrequency Decimal @db.Decimal(10, 4)
+  consistencyScore   Decimal  @db.Decimal(5, 2)
+  growthRate         Decimal? @db.Decimal(10, 4)
+  
+  // Commitment for ZK proofs
+  aggregateCommitment String?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@unique([userId, periodType, periodStart])
+  @@index([userId, periodType])
+  @@index([periodStart, periodEnd])
+}
+
+enum PeriodType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// ============ Proof & Verification Models ============
+
+model Proof {
+  id                 String   @id @default(uuid())
+  
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Proof type
+  proofType          ProofType
+  claimType          String   // "income_range", "consistency", "growth", etc.
+  
+  // Proof data
+  proofData          Json     // ZK proof blob
+  publicInputs       Json     // Public inputs for verification
+  circuitId          String   // Which circuit generated this
+  
+  // Claim parameters
+  claimParameters    Json     // e.g., { "minAmount": 500, "months": 6 }
+  claimResult        Boolean  // True/False result
+  
+  // Verification
+  verified           Boolean  @default(false)
+  verifiedAt         DateTime?
+  verifierAddress    String?
+  
+  // Expiry
+  expiresAt          DateTime?
+  
+  createdAt          DateTime @default(now())
+  
+  @@index([userId])
+  @@index([proofType])
+  @@index([verified])
+  @@index([expiresAt])
+}
+
+enum ProofType {
+  THRESHOLD
+  PATTERN
+  AGGREGATE
+  IDENTITY
+  COMPOSITE
+}
+
+model Share {
+  id                 String   @id @default(uuid())
+  
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Share details
+  shareToken         String   @unique // JWT or similar
+  scope              Json     // What data is shared
+  purpose            String?  // Why it's shared
+  
+  // Recipient
+  recipientName      String?
+  recipientType      RecipientType
+  recipientDid       String?
+  
+  // Access control
+  active             Boolean  @default(true)
+  viewCount          Int      @default(0)
+  maxViews           Int?
+  
+  // Timestamps
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  lastAccessedAt     DateTime?
+  revokedAt          DateTime?
+  
+  // Audit trail
+  accessLogs         AccessLog[]
+  
+  @@index([userId])
+  @@index([shareToken])
+  @@index([active])
+  @@index([expiresAt])
+}
+
+enum RecipientType {
+  LENDER
+  LANDLORD
+  EMPLOYER
+  GOVERNMENT
+  BUSINESS
+  INDIVIDUAL
+  OTHER
+}
+
+model AccessLog {
+  id                 String   @id @default(uuid())
+  
+  shareId            String
+  share              Share    @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  
+  // Access details
+  accessedAt         DateTime @default(now())
+  ipAddress          String?
+  userAgent          String?
+  location           String?
+  
+  // What was accessed
+  dataAccessed       Json?
+  proofGenerated     Boolean  @default(false)
+  
+  @@index([shareId])
+  @@index([accessedAt])
+}
+
+// ============ Integration Models ============
+
+model TransactionIngestion {
+  id                 String   @id @default(uuid())
+  
+  // Source
+  sourceSystem       String   // "main-backend", "webhook", "cron"
+  sourceTransactionId String
+  sourceUserId       String
+  
+  // Status
+  status             IngestionStatus
+  retryCount         Int      @default(0)
+  errorMessage       String?
+  
+  // Transaction data (before processing)
+  rawData            Json
+  
+  // Processing
+  processedAt        DateTime?
+  receiptId          String?  // Linked receipt after minting
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@unique([sourceSystem, sourceTransactionId])
+  @@index([status])
+  @@index([sourceUserId])
+  @@index([createdAt])
+}
+
+enum IngestionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRY
+}
+
+// ============ System Models ============
+
+model SmartContract {
+  id                 String   @id @default(uuid())
+  
+  name               String
+  address            String   @unique
+  chainId            Int
+  
+  // Contract details
+  contractType       ContractType
+  abi                Json
+  deployedAt         DateTime
+  deploymentTx       String
+  
+  // Status
+  active             Boolean  @default(true)
+  verified           Boolean  @default(false)
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([chainId])
+  @@index([contractType])
+}
+
+enum ContractType {
+  RECEIPT_NFT
+  PROFILE_REGISTRY
+  VERIFIER
+  OTHER
+}
+
+model SystemConfig {
+  id                 String   @id @default(uuid())
+  
+  key                String   @unique
+  value              Json
+  description        String?
+  
+  updatedAt          DateTime @updatedAt
+  updatedBy          String?
+}
+
+// ============ Analytics Models ============
+
+model DailyMetrics {
+  id                 String   @id @default(uuid())
+  
+  date               DateTime @unique
+  
+  // Volume metrics
+  receiptsCreated    Int
+  usersActive        Int
+  proofsGenerated    Int
+  sharesCreated      Int
+  
+  // Value metrics
+  totalValue         Decimal  @db.Decimal(20, 2)
+  avgCreditScore     Decimal  @db.Decimal(10, 2)
+  
+  // Level distribution
+  level1Users        Int
+  level2Users        Int
+  level3Users        Int
+  level4Users        Int
+  level5Users        Int
+  
+  createdAt          DateTime @default(now())
+  
+  @@index([date])
+}
+
