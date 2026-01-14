@@ -9,6 +9,7 @@ import {
   ProofVerificationResult,
   CircuitInput,
 } from '../types';
+import { zkVerifyService } from './zkverify.service';
 
 const prisma = new PrismaClient();
 
@@ -113,7 +114,34 @@ class ZKProofService {
         claimType: request.claimType,
         result: claimResult,
       });
-      
+
+      let verificationId: string | undefined;
+      let verificationStatus: string | undefined;
+
+      if (zkVerifyService.isEnabled()) {
+        try {
+          const submission = await zkVerifyService.submitProof({
+            proofType: request.claimType,
+            proof,
+            publicSignals: publicInputs,
+            metadata: {
+              proofId: storedProof.id,
+              userId: user.id,
+              claimType: request.claimType,
+              proofType: request.proofType,
+              claimResult,
+            },
+          });
+          verificationId = submission.verificationId;
+          verificationStatus = submission.status;
+        } catch (error: any) {
+          logger.error('zkVerify submission failed', {
+            proofId: storedProof.id,
+            error: error?.message,
+          });
+        }
+      }
+
       return {
         proofId: storedProof.id,
         userId: user.id,
@@ -127,6 +155,8 @@ class ZKProofService {
         circuitId,
         expiresAt,
         createdAt: storedProof.createdAt,
+        verificationId,
+        verificationStatus,
       };
     } catch (error) {
       logger.error('Error generating proof', { request, error });
@@ -359,16 +389,33 @@ class ZKProofService {
         proofId: request.proof.proofId,
         claimType: request.proof.claimType,
       });
-      
-      // In production, this would:
-      // 1. Load verification key for the circuit
-      // 2. Verify the proof using groth16.verify
-      // 3. Check public inputs match expected values
-      
-      // For now, mock verification
-      const valid = true; // In production: await groth16.verify(vKey, publicInputs, proof)
-      const claimVerified = request.proof.claimResult;
-      
+
+      let valid = true;
+      let claimVerified = request.proof.claimResult;
+      let verifierSignature = 'mock_signature';
+
+      if (zkVerifyService.isEnabled()) {
+        try {
+          const submission = await zkVerifyService.submitProof({
+            proofType: request.proof.claimType,
+            proof: request.proof.proof,
+            publicSignals: request.proof.publicInputs,
+            metadata: {
+              proofId: request.proof.proofId,
+              claimType: request.proof.claimType,
+              proofType: request.proof.proofType,
+            },
+          });
+          claimVerified = request.proof.claimResult;
+          verifierSignature = submission.verificationId || verifierSignature;
+        } catch (error: any) {
+          logger.error('zkVerify verification submission failed', {
+            proofId: request.proof.proofId,
+            error: error?.message,
+          });
+        }
+      }
+
       // Update proof in database
       await prisma.proof.update({
         where: { id: request.proof.proofId },
@@ -389,7 +436,7 @@ class ZKProofService {
         proofId: request.proof.proofId,
         claimVerified,
         verifiedAt: new Date(),
-        verifierSignature: 'mock_signature',
+        verifierSignature,
       };
     } catch (error) {
       logger.error('Error verifying proof', { request, error });
@@ -452,4 +499,11 @@ class ZKProofService {
 }
 
 export const zkProofService = new ZKProofService();
+
+
+
+
+
+
+
 

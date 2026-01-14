@@ -69,6 +69,15 @@ export const config = {
     bonsaiApiKey: process.env.BONSAI_API_KEY || '',
     bonsaiApiUrl: process.env.BONSAI_API_URL || '',
   },
+
+  // zkVerify (testnet)
+  zkVerify: {
+    enabled: process.env.ZKVERIFY_ENABLED === 'true',
+    nodeUrl: process.env.ZKVERIFY_NODE_URL || '',
+    apiKey: process.env.ZKVERIFY_API_KEY || '',
+    network: process.env.ZKVERIFY_NETWORK || 'testnet',
+    timeoutMs: parseInt(process.env.ZKVERIFY_TIMEOUT_MS || '30000', 10),
+  },
   
   // Monitoring
   monitoring: {
@@ -95,4 +104,11 @@ export function validateConfig() {
     );
   }
 }
+
+
+
+
+
+
+
 

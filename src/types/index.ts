@@ -219,6 +219,8 @@ export interface GeneratedProof {
   circuitId: string;
   expiresAt?: Date;
   createdAt: Date;
+  verificationId?: string;
+  verificationStatus?: string;
 }
 
 export interface ProofVerificationRequest {
@@ -381,4 +383,11 @@ export interface APIResponse<T = any> {
     version: string;
   };
 }
+
+
+
+
+
+
+
 
