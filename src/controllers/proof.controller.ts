@@ -128,6 +128,36 @@ export class ProofController {
   }
   
   /**
+   * GET /api/v1/proofs/status/:verificationId
+   * Get zkVerify status for a verificationId
+   */
+  async getStatus(req: Request, res: Response) {
+    try {
+      const { verificationId } = req.params;
+
+      const status = await zkProofService.getVerificationStatus(verificationId);
+
+      res.json({
+        success: true,
+        data: status,
+        meta: {
+          timestamp: new Date(),
+          version: 'v1',
+        },
+      });
+    } catch (error: any) {
+      logger.error('Error in getStatus', { error });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'STATUS_ERROR',
+          message: error.message || 'Failed to get verification status',
+        },
+      });
+    }
+  }
+
+  /**
    * GET /api/v1/proofs/:proofId
    * Get proof by ID
    */
@@ -170,4 +200,11 @@ export class ProofController {
 }
 
 export const proofController = new ProofController();
+
+
+
+
+
+
+
 

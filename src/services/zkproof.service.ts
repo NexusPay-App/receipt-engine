@@ -30,6 +30,18 @@ class ZKProofService {
     this.poseidon = await buildPoseidon();
     logger.info('ZK Proof Service initialized');
   }
+
+  async getVerificationStatus(verificationId: string) {
+    if (!zkVerifyService.isEnabled()) {
+      return {
+        success: true,
+        verificationId,
+        status: 'mock',
+      };
+    }
+
+    return zkVerifyService.getStatus(verificationId);
+  }
   
   /**
    * Generate proof for a claim
@@ -396,20 +408,31 @@ class ZKProofService {
 
       if (zkVerifyService.isEnabled()) {
         try {
-          const submission = await zkVerifyService.submitProof({
-            proofType: request.proof.claimType,
-            proof: request.proof.proof,
-            publicSignals: request.proof.publicInputs,
-            metadata: {
-              proofId: request.proof.proofId,
-              claimType: request.proof.claimType,
-              proofType: request.proof.proofType,
-            },
-          });
-          claimVerified = request.proof.claimResult;
-          verifierSignature = submission.verificationId || verifierSignature;
+          if (request.proof.verificationId) {
+            const status = await zkVerifyService.getStatus(request.proof.verificationId);
+            verifierSignature = status.verificationId || verifierSignature;
+            if (status.status && ['verified', 'completed', 'success'].includes(status.status)) {
+              valid = true;
+              claimVerified = request.proof.claimResult;
+            } else if (status.status === 'failed') {
+              valid = false;
+              claimVerified = false;
+            }
+          } else {
+            const submission = await zkVerifyService.submitProof({
+              proofType: request.proof.claimType,
+              proof: request.proof.proof,
+              publicSignals: request.proof.publicInputs,
+              metadata: {
+                proofId: request.proof.proofId,
+                claimType: request.proof.claimType,
+                proofType: request.proof.proofType,
+              },
+            });
+            verifierSignature = submission.verificationId || verifierSignature;
+          }
         } catch (error: any) {
-          logger.error('zkVerify verification submission failed', {
+          logger.error('zkVerify verification handling failed', {
             proofId: request.proof.proofId,
             error: error?.message,
           });

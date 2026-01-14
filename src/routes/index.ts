@@ -82,6 +82,12 @@ router.get(
   proofController.getProof.bind(proofController)
 );
 
+router.get(
+  '/proofs/status/:verificationId',
+  authMiddleware,
+  proofController.getStatus.bind(proofController)
+);
+
 // ============ Share Routes ============
 router.post(
   '/shares/create',
@@ -127,4 +133,11 @@ router.get('/health', (req, res) => {
 });
 
 export default router;
+
+
+
+
+
+
+
 
