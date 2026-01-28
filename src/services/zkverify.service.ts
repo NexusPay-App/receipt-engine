@@ -82,6 +82,13 @@ class ZkVerifyService {
       throw new Error(`zkVerify status failed: ${error?.message || 'unknown error'}`);
     }
   }
+
+  /**
+   * Alias for getStatus (used by poller service)
+   */
+  async getVerificationStatus(verificationId: string) {
+    return this.getStatus(verificationId);
+  }
 }
 
 export const zkVerifyService = new ZkVerifyService();
