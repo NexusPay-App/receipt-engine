@@ -105,6 +105,34 @@ class ZKProofService {
         ? new Date(Date.now() + request.expiryDuration * 1000)
         : undefined;
       
+      // Submit to zkVerify if enabled
+      let verificationId: string | undefined;
+      let verificationStatus: string | undefined;
+      let submittedToZkVerify = false;
+      let zkVerifySubmittedAt: Date | undefined;
+      
+      try {
+        const zkVerifyResult = await zkVerifyService.submitProof({
+          proof,
+          publicInputs,
+          circuitId,
+          userId: user.id,
+          metadata: {
+            claimType: request.claimType,
+            claimResult,
+          },
+        });
+        
+        if (zkVerifyResult) {
+          verificationId = zkVerifyResult.verificationId;
+          verificationStatus = zkVerifyResult.status || 'pending';
+          submittedToZkVerify = true;
+          zkVerifySubmittedAt = new Date();
+        }
+      } catch (zkError) {
+        logger.warn('zkVerify submission failed, continuing with local proof', { zkError });
+      }
+      
       // Store proof in database
       const storedProof = await prisma.proof.create({
         data: {
@@ -118,6 +146,10 @@ class ZKProofService {
           claimResult,
           verified: false, // Will be verified separately
           expiresAt,
+          verificationId,
+          verificationStatus,
+          submittedToZkVerify,
+          zkVerifySubmittedAt,
         },
       });
       

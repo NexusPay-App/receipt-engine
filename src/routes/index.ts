@@ -4,6 +4,7 @@ import { receiptController } from '../controllers/receipt.controller';
 import { profileController } from '../controllers/profile.controller';
 import { proofController } from '../controllers/proof.controller';
 import { shareController } from '../controllers/share.controller';
+import { metricsController } from '../controllers/metrics.controller';
 import { authMiddleware } from '../middleware/auth';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
 
@@ -118,6 +119,25 @@ router.get(
   '/shares/:shareId/logs',
   authMiddleware,
   shareController.getShareLogs.bind(shareController)
+);
+
+// ============ Metrics Routes (zkVerify Grant Reporting) ============
+router.get(
+  '/metrics/proof-volume',
+  rateLimitMiddleware,
+  metricsController.getProofVolume.bind(metricsController)
+);
+
+router.get(
+  '/metrics/user-engagement',
+  rateLimitMiddleware,
+  metricsController.getUserEngagement.bind(metricsController)
+);
+
+router.get(
+  '/metrics/milestone-report',
+  rateLimitMiddleware,
+  metricsController.getMilestoneReport.bind(metricsController)
 );
 
 // ============ Health Check ============

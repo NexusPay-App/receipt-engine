@@ -4,6 +4,7 @@ import { logger } from './utils/logger';
 import { thirdwebService } from './services/thirdweb.service';
 import { zkProofService } from './services/zkproof.service';
 import { ingestionService } from './services/ingestion.service';
+import { zkVerifyPollerService } from './services/zkverify-poller.service';
 
 /**
  * NexusPay Receipt Engine
@@ -22,6 +23,9 @@ async function bootstrap() {
     await zkProofService.initialize();
     logger.info('Services initialized');
     
+    // Start zkVerify status poller
+    zkVerifyPollerService.start();
+    
     // Create Express app
     const app = createApp();
     
@@ -31,6 +35,7 @@ async function bootstrap() {
         port: config.port,
         env: config.nodeEnv,
         network: config.thirdweb.network,
+        zkVerifyPoller: zkVerifyPollerService.getStatus().running,
       });
     });
     
@@ -42,6 +47,7 @@ async function bootstrap() {
         logger.info('HTTP server closed');
         
         // Cleanup services
+        zkVerifyPollerService.stop();
         await ingestionService.shutdown();
         
         logger.info('Shutdown complete');
@@ -80,4 +86,11 @@ async function bootstrap() {
 
 // Start the application
 bootstrap();
+
+
+
+
+
+
+
 

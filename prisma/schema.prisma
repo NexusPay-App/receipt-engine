@@ -176,15 +176,28 @@ model Proof {
   verifiedAt         DateTime?
   verifierAddress    String?
   
+  // zkVerify integration
+  verificationId     String?  @unique // zkVerify attestation ID
+  verificationStatus String?  // "pending", "verified", "failed"
+  zkVerifyTxHash     String?  // Transaction hash on zkVerify chain
+  zkVerifyBlockNumber BigInt? // Block number on zkVerify
+  attestationProof   Json?    // Merkle proof from zkVerify
+  submittedToZkVerify Boolean @default(false)
+  zkVerifySubmittedAt DateTime?
+  
   // Expiry
   expiresAt          DateTime?
   
   createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   
   @@index([userId])
   @@index([proofType])
   @@index([verified])
   @@index([expiresAt])
+  @@index([verificationId])
+  @@index([verificationStatus])
+  @@index([submittedToZkVerify])
 }
 
 enum ProofType {
@@ -372,4 +385,11 @@ model DailyMetrics {
   
   @@index([date])
 }
+
+
+
+
+
+
+
 
